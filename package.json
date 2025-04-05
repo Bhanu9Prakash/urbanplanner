@@ -1,15 +1,28 @@
 {
-  "name": "nodejs",
+  "name": "urban-planning-advisor",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Web-based tool that uses AI to analyze urban spaces and suggest improvements",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   },
-  "keywords": [],
+  "keywords": [
+    "urban planning",
+    "AI",
+    "image analysis",
+    "gemini",
+    "generative AI"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@types/node": "^22.13.11"
+    "@google/generative-ai": "^0.24.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
   }
 }

@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Urban Planning Advisor</title>
+    <!-- Font Awesome for icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@700&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Vue.js CDN -->
+    <script src="https://unpkg.com/vue@3.2.47/dist/vue.global.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <div class="container">
+        <!-- Header Section -->
+        <header>
+          <h1>
+            <i class="fas fa-city"></i> Urban Planning Advisor
+            <i class="fas fa-map-marked-alt"></i>
+          </h1>
+          <p>
+            Upload a photo of an urban space and let AI analyze and visualize
+            improvements
+          </p>
+          <div class="generation-history">
+            <button @click="showHistoryModal = true" class="btn-secondary">
+              <i class="fas fa-history"></i> View History
+            </button>
+          </div>
+        </header>
+
+        <!-- Main Content -->
+        <main>
+          <!-- Upload Section -->
+          <div class="upload-section">
+            <div
+              class="upload-container"
+              @click="triggerFileInput"
+              @dragover.prevent="onDragOver"
+              @dragleave.prevent="onDragLeave"
+              @drop.prevent="onFileDrop"
+              :class="{'drag-active': isDragging}"
+              v-show="!previewVisible"
+            >
+              <div class="upload-content">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>Drag & drop a photo of an urban space or click to browse</p>
+                <span class="file-info">JPG, JPEG or PNG (max 15MB)</span>
+              </div>
+              <input
+                type="file"
+                ref="fileInput"
+                @change="onFileChange"
+                accept=".jpg,.jpeg,.png"
+                hidden
+              />
+            </div>
+
+            <div class="preview-container" v-show="previewVisible">
+              <div class="preview-header">
+                <h3>Your Urban Space</h3>
+                <button @click="resetUpload" class="btn-secondary">
+                  <i class="fas fa-sync-alt"></i> Change
+                </button>
+              </div>
+              <div class="image-preview">
+                <img :src="previewImageUrl" alt="Preview" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Analysis Options Section -->
+          <div class="analysis-section">
+            <h3>Ready to Analyze</h3>
+
+            <div class="analysis-info">
+              <p>Our Urban Planning Advisor will:</p>
+              <ul>
+                <li>
+                  <i class="fas fa-search"></i> Analyze urban planning elements
+                  in your image
+                </li>
+                <li>
+                  <i class="fas fa-list"></i> Identify issues and areas for
+                  improvement
+                </li>
+                <li>
+                  <i class="fas fa-lightbulb"></i> Suggest urban planning
+                  enhancements
+                </li>
+                <li>
+                  <i class="fas fa-paint-brush"></i> Visualize how the
+                  improvements would look
+                </li>
+              </ul>
+            </div>
+
+            <div class="submit-section">
+              <button
+                @click="analyzeUrbanSpace"
+                :disabled="!uploadedFile"
+                class="btn-primary"
+              >
+                <i class="fas fa-city"></i> {{ isProcessing ? 'Processing...' :
+                'Analyze Urban Space' }}
+              </button>
+              <p class="info-text">This may take 30-60 seconds to process.</p>
+            </div>
+          </div>
+
+          <!-- Result Section -->
+          <div class="result-section" v-show="resultVisible">
+            <h3>Urban Planning Analysis</h3>
+
+            <!-- Tabs for different views -->
+            <div class="result-tabs">
+              <button
+                v-for="tab in tabs"
+                :key="tab.id"
+                class="tab-btn"
+                :class="{ active: activeTab === tab.id }"
+                @click="activeTab = tab.id"
+              >
+                {{ tab.label }}
+              </button>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="tab-content">
+              <!-- Comparison Tab -->
+              <div
+                class="tab-pane"
+                :class="{ active: activeTab === 'comparison' }"
+                id="comparison-tab"
+              >
+                <div class="comparison-container">
+                  <div class="original-image">
+                    <h4>Current Urban Space</h4>
+                    <img
+                      :src="originalImageUrl"
+                      alt="Original"
+                      @error="handleImageError('original')"
+                    />
+                  </div>
+                  <div class="incremental-view">
+                    <div class="incremental-controls">
+                      <h4>Interactive Improvements</h4>
+                      <div class="slider-container">
+                        <button
+                          @click="prevChange"
+                          :disabled="currentChangeIndex === 0"
+                          class="control-btn"
+                        >
+                          <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <div class="change-progress">
+                          <span class="change-index"
+                            >{{ currentChangeIndex + 1 }}</span
+                          >
+                          of <span>{{ improvements.length || 1 }}</span>
+                        </div>
+                        <button
+                          @click="nextChange"
+                          :disabled="currentChangeIndex >= improvements.length - 1"
+                          class="control-btn"
+                        >
+                          <i class="fas fa-chevron-right"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <div class="result-image-container">
+                      <div class="change-description" v-if="currentChange">
+                        <span class="change-category"
+                          >{{ currentChange.category }}</span
+                        >
+                        <p>{{ currentChange.description }}</p>
+                      </div>
+                      <div class="image-wrapper">
+                        <div v-if="imageDebug" class="image-debug">
+                          <small
+                            >Showing image {{ currentChangeIndex + 1 }}/{{
+                            generatedImages.length }}: {{ currentImageUrl
+                            }}</small
+                          >
+                        </div>
+                        <img
+                          :src="currentImageUrl"
+                          alt="Result"
+                          @error="handleImageError('result')"
+                          @load="handleImageLoad"
+                        />
+                        <div class="loader" v-if="isProcessing">
+                          <div class="spinner"></div>
+                          <p>Analyzing and visualizing improvements...</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Image debug toggle (for troubleshooting) -->
+                <div
+                  class="debug-controls"
+                  style="text-align: right; margin-top: 10px"
+                >
+                  <button
+                    @click="imageDebug = !imageDebug"
+                    class="debug-btn"
+                    style="font-size: 0.8rem; padding: 3px 8px; opacity: 0.6"
+                  >
+                    {{ imageDebug ? 'Hide Debug' : 'Show Debug' }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Analysis Tab -->
+              <div
+                class="tab-pane"
+                :class="{ active: activeTab === 'analysis' }"
+                id="analysis-tab"
+              >
+                <div class="analysis-details">
+                  <h4>Urban Space Assessment</h4>
+                  <div class="analysis-overall">
+                    <h5>Overall Description:</h5>
+                    <p>
+                      {{ analysisResults.current_assessment?.overall_description
+                      || 'No analysis available yet' }}
+                    </p>
+                  </div>
+
+                  <h5>Identified Issues:</h5>
+                  <div class="issues-container">
+                    <div
+                      v-for="(issue, i) in analysisResults.current_assessment?.identified_issues || []"
+                      :key="i"
+                      class="issue-card"
+                    >
+                      <h6>
+                        <i :class="getCategoryIcon(issue.category)"></i>
+                        {{ issue.category }}
+                      </h6>
+                      <p>{{ issue.details }}</p>
+                      <button
+                        @click="showChangeForIssue(i)"
+                        class="see-improvement-btn"
+                      >
+                        <i class="fas fa-eye"></i> See Improvement
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Recommendations Tab -->
+              <div
+                class="tab-pane"
+                :class="{ active: activeTab === 'recommendations' }"
+                id="recommendations-tab"
+              >
+                <div class="recommendations-details">
+                  <h4>Improvement Recommendations</h4>
+                  <div class="recommendations-container">
+                    <div
+                      v-for="(rec, i) in analysisResults.improvement_recommendations || []"
+                      :key="i"
+                      class="recommendation-card"
+                    >
+                      <h6>
+                        <i :class="getCategoryIcon(rec.category)"></i> {{
+                        rec.category }}
+                      </h6>
+                      <p>{{ rec.recommendation }}</p>
+                      <p class="benefits">
+                        <i class="fas fa-check-circle"></i> {{
+                        rec.expected_benefits }}
+                      </p>
+                      <button
+                        @click="showChangeForRecommendation(i)"
+                        class="see-improvement-btn"
+                      >
+                        <i class="fas fa-eye"></i> See Visualization
+                      </button>
+                    </div>
+                  </div>
+
+                  <h5>Urban Planning Principles Applied:</h5>
+                  <ul class="principles-list">
+                    <li
+                      v-for="(principle, i) in analysisResults.urban_planning_principles || []"
+                      :key="i"
+                    >
+                      {{ principle }}
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div class="action-buttons">
+              <button
+                @click="downloadImage"
+                class="btn-primary"
+                :disabled="!resultImageUrl"
+              >
+                <i class="fas fa-download"></i>
+                {{ downloadStatus || 'Download Visualization' }}
+              </button>
+              <button
+                @click="downloadReport"
+                class="btn-secondary"
+                :disabled="!analysisResults.current_assessment"
+              >
+                <i class="fas fa-file-download"></i> Download Report
+              </button>
+              <button @click="resetAll" class="btn-secondary">
+                <i class="fas fa-redo"></i> Analyze Another
+              </button>
+            </div>
+          </div>
+
+          <!-- History Modal -->
+          <div class="modal" :class="{ 'modal-open': showHistoryModal }">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h3>Your Previous Analyses</h3>
+                <span class="close-modal" @click="showHistoryModal = false"
+                  >&times;</span
+                >
+              </div>
+              <div class="modal-body">
+                <div class="analysis-grid">
+                  <div
+                    v-if="savedAnalyses.length === 0"
+                    class="empty-history-message"
+                  >
+                    You haven't analyzed any urban spaces yet.
+                  </div>
+                  <div
+                    v-for="(item, index) in savedAnalyses"
+                    :key="item.id"
+                    class="history-item"
+                    @click="loadSavedAnalysis(index)"
+                  >
+                    <div class="history-image-container">
+                      <img
+                        :src="item.resultImageUrl"
+                        alt="Improved urban space"
+                      />
+                    </div>
+                    <div class="history-details">
+                      <p class="history-date">
+                        {{ formatDate(item.timestamp) }}
+                      </p>
+                    </div>
+                    <div class="history-actions">
+                      <button
+                        class="history-download"
+                        @click.stop="downloadHistoryImage(item.resultImageUrl)"
+                        title="Download"
+                      >
+                        <i class="fas fa-download"></i>
+                      </button>
+                      <button
+                        class="history-delete"
+                        @click.stop="deleteHistoryItem(item.id)"
+                        title="Delete"
+                      >
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+
+        <!-- Footer -->
+        <footer>
+          <p>
+            Made with <i class="fas fa-heart"></i> by Urban Planning Advisor
+          </p>
+          <p class="disclaimer">
+            For planning inspiration only. Always consult with professional
+            urban planners for actual implementations.
+          </p>
+        </footer>
+      </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="main.js"></script>
+  </body>
+</html>
