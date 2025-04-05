@@ -3,6 +3,11 @@
 
 An AI-powered web application that analyzes urban spaces and suggests improvements for better city planning and livability.
 
+https://urban-planner-20-bhanu-prakash-r.replit.app/
+
+![image](https://github.com/user-attachments/assets/a80fbbdc-9e88-4aa8-a111-2ef3b1b1880c)
+
+
 ## Features
 
 - **Urban Space Analysis**: Upload photos of urban spaces for detailed analysis
